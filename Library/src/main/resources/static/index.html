@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Akıllı Kütüphane</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; padding: 20px; }
+        .card { margin-top: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1 class="text-center mb-4">📚 Akıllı Kütüphane Sistemi</h1>
+
+    <div class="card">
+        <div class="card-header bg-primary text-white">Yeni Kitap Ekle</div>
+        <div class="card-body">
+            <form id="bookForm">
+                <div class="row">
+                    <div class="col-md-4">
+                        <input type="text" id="title" class="form-control" placeholder="Kitap Adı" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" id="pageCount" class="form-control" placeholder="Sayfa Sayısı">
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" id="stock" class="form-control" placeholder="Stok" required>
+                    </div>
+                    <div class="col-md-2">
+                        <input type="number" id="catId" class="form-control" placeholder="Kategori ID" required>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-success w-100">Kaydet</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-dark text-white">Kütüphanedeki Kitaplar</div>
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Kitap Adı</th>
+                    <th>Sayfa</th>
+                    <th>Stok</th>
+                    <th>Kategori</th>
+                </tr>
+                </thead>
+                <tbody id="bookTableBody">
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    const API_URL = "/api/books";
+
+    document.addEventListener("DOMContentLoaded", fetchBooks);
+
+    function fetchBooks() {
+        fetch(API_URL)
+            .then(response => response.json())
+            .then(data => {
+                const tableBody = document.getElementById("bookTableBody");
+                tableBody.innerHTML = "";
+                data.forEach(book => {
+                    const row = `
+                        <tr>
+                            <td>${book.id}</td>
+                            <td>${book.title}</td>
+                            <td>${book.pageCount}</td>
+                            <td>${book.stockQuantity}</td>
+                            <td>${book.category ? book.category.name : 'Kategori Yok'}</td>
+                        </tr>
+                    `;
+                    tableBody.innerHTML += row;
+                });
+            })
+            .catch(error => console.error('Veri çekme hatası:', error));
+    }
+
+    document.getElementById("bookForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+
+        const bookData = {
+            title: document.getElementById("title").value,
+            pageCount: document.getElementById("pageCount").value,
+            stockQuantity: document.getElementById("stock").value,
+            category: { id: document.getElementById("catId").value }
+        };
+
+        fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(bookData)
+        })
+            .then(async response => {
+                // DÜZELTME BURADA: Cevap OK değilse hatayı fırlat
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(errorText || "Sunucu hatası");
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert("✅ Kitap Başarıyla Eklendi!");
+                fetchBooks();
+                document.getElementById("bookForm").reset();
+            })
+            .catch(error => {
+                // Artık gerçek hatayı ekrana basacak
+                alert("❌ HATA OLUŞTU:\n" + error.message);
+                console.error(error);
+            });
+    });
+</script>
+
+</body>
+</html>
