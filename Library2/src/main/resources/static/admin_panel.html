@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Yönetim Paneli</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body { background-color: #f4f6f9; min-height: 100vh; }
+        .sidebar { background: #1a1c23; color: #a0aec0; min-height: 100vh; }
+        .sidebar a { color: #a0aec0; text-decoration: none; padding: 15px; display: block; }
+        .sidebar a:hover, .sidebar a.active { background: #2d3748; color: white; border-left: 4px solid #3182ce; }
+        .card-custom { border: none; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+
+        .book-thumb {
+            height: 60px;
+            width: auto;
+            max-width: 45px;
+            object-fit: contain;
+            border-radius: 4px;
+            border: 1px solid #eee;
+            background: #fff;
+            padding: 2px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-2 sidebar p-0">
+            <h5 class="text-white text-center py-4 border-bottom border-secondary">YÖNETİM PANELİ</h5>
+            <a href="#" onclick="showSection('loans')" class="active" id="link-loans"><i class="fas fa-list me-2"></i>Ödünç & İade</a>
+            <a href="#" onclick="showSection('books')" id="link-books"><i class="fas fa-book me-2"></i>Kitaplar</a>
+            <a href="#" onclick="logout()" class="text-danger mt-5"><i class="fas fa-sign-out-alt me-2"></i>Çıkış</a>
+        </div>
+
+        <div class="col-md-10 p-4">
+
+            <div id="section-loans">
+                <h3 class="mb-4">Ödünç Takip</h3>
+                <div class="card card-custom p-0">
+                    <table class="table table-striped mb-0 align-middle">
+                        <thead class="table-dark"><tr><th>Kitap</th><th>Üye</th><th>Son Tarih</th><th>Durum</th><th>Ceza</th><th>İşlem</th></tr></thead>
+                        <tbody id="loanTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div id="section-books" style="display: none;">
+                <div class="d-flex justify-content-between mb-4">
+                    <h3>Kütüphane Envanteri</h3>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBookModal">Yeni Ekle</button>
+                </div>
+                <div class="card card-custom p-0">
+                    <table class="table align-middle mb-0">
+                        <thead><tr><th>Resim</th><th>Başlık</th><th>Stok</th><th>Sil</th></tr></thead>
+                        <tbody id="bookTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addBookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Kitap Ekle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addBookForm">
+                    <input type="text" id="title" class="form-control mb-2" placeholder="Kitap Adı" required>
+                    <input type="number" id="pageCount" class="form-control mb-2" placeholder="Sayfa Sayısı">
+                    <input type="number" id="stockQuantity" class="form-control mb-2" placeholder="Stok" required>
+                    <input type="date" id="publicationDate" class="form-control mb-2">
+                    <input type="text" id="imageUrl" class="form-control mb-2" placeholder="Resim URL (https://...)">
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" onclick="saveBook()">Kaydet</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+    if (!currentUser || currentUser.role !== 'ADMIN') window.location.href = 'index.html';
+
+    document.addEventListener('DOMContentLoaded', loadLoans);
+
+    function logout() { localStorage.removeItem('currentUser'); window.location.href='index.html'; }
+
+    function showSection(sec) {
+        document.getElementById('section-loans').style.display = sec==='loans'?'block':'none';
+        document.getElementById('section-books').style.display = sec==='books'?'block':'none';
+        document.getElementById('link-loans').classList.remove('active');
+        document.getElementById('link-books').classList.remove('active');
+        document.getElementById('link-'+sec).classList.add('active');
+        if(sec==='books') loadBooks(); else loadLoans();
+    }
+
+    function loadLoans() {
+        fetch('/api/loans/active').then(r=>r.json()).then(loans => {
+            const tbody = document.getElementById('loanTableBody'); tbody.innerHTML = '';
+            loans.forEach(l => {
+                const fine = l.fineAmount > 0 ? `<b class="text-danger">${l.fineAmount} TL</b>` : '-';
+                const img = l.book.imageUrl ? l.book.imageUrl : 'https://via.placeholder.com/40x60';
+                // Tabloya resim eklendi
+                tbody.innerHTML += `<tr>
+                    <td><div class="d-flex align-items-center"><img src="${img}" class="book-thumb me-2"> ${l.book.title}</div></td>
+                    <td>${l.member.firstName}</td>
+                    <td>${l.dueDate}</td>
+                    <td>${l.fineAmount > 0 ? '<span class="badge bg-danger">Gecikti</span>':'<span class="badge bg-success">OK</span>'}</td>
+                    <td>${fine}</td>
+                    <td><button class="btn btn-sm btn-success" onclick="returnBook(${l.id})">İade</button></td>
+                </tr>`;
+            });
+        });
+    }
+
+    function loadBooks() {
+        fetch('/api/books').then(r=>r.json()).then(books => {
+            const tbody = document.getElementById('bookTableBody'); tbody.innerHTML = '';
+            books.forEach(b => {
+                const img = b.imageUrl ? b.imageUrl : 'https://via.placeholder.com/40x60';
+                tbody.innerHTML += `<tr><td><img src="${img}" class="book-thumb"></td><td>${b.title}</td><td><button class="btn btn-sm btn-outline-secondary" onclick="stock(${b.id},-1)">-</button> <b class="mx-2">${b.stockQuantity}</b> <button class="btn btn-sm btn-outline-primary" onclick="stock(${b.id},1)">+</button></td><td><button class="btn btn-sm btn-danger" onclick="del(${b.id})">Sil</button></td></tr>`;
+            });
+        });
+    }
+
+    function returnBook(id) { fetch('/api/loans/return/'+id, {method:'PUT'}).then(()=>loadLoans()); }
+    function stock(id, amt) { fetch(`/api/books/${id}/stock?amount=${amt}`, {method:'PUT'}).then(()=>loadBooks()); }
+    function del(id) { if(confirm("Silinsin mi?")) fetch('/api/books/'+id, {method:'DELETE'}).then(()=>loadBooks()); }
+
+    function saveBook() {
+        const data = {
+            title: document.getElementById('title').value,
+            pageCount: document.getElementById('pageCount').value,
+            stockQuantity: document.getElementById('stockQuantity').value,
+            publicationDate: document.getElementById('publicationDate').value,
+            imageUrl: document.getElementById('imageUrl').value
+        };
+        fetch('/api/books', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(data)})
+            .then(()=>{ bootstrap.Modal.getInstance(document.getElementById('addBookModal')).hide(); loadBooks(); });
+    }
+</script>
+</body>
+</html>
