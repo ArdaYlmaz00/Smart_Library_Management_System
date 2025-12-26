@@ -94,7 +94,19 @@
 
     document.addEventListener('DOMContentLoaded', loadLoans);
 
-    function logout() { localStorage.removeItem('currentUser'); window.location.href='index.html'; }
+    function logout() {
+        if(currentUser && currentUser.id) {
+            // Backend'e "Bu kullanıcının token'ını sil" diyoruz
+            fetch('/api/members/logout/' + currentUser.id, { method: 'POST' })
+                .finally(() => {
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                });
+        } else {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+    }
 
     function showSection(sec) {
         document.getElementById('section-loans').style.display = sec==='loans'?'block':'none';

@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime; // Eklendi: Saat/Dakika için
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -44,8 +45,15 @@ public class LibraryService {
         loan.setBook(book);
         loan.setMember(memberRepository.findById(memberId).orElseThrow());
         loan.setStaff(staffRepository.findById(staffId != null ? staffId : 1L).orElseThrow());
-        loan.setLoanDate(LocalDate.now());
-        loan.setDueDate(LocalDate.now().plusDays(14));
+
+        // --- DEĞİŞİKLİK BURADA ---
+        // Kitabı şu an veriyoruz
+        loan.setLoanDate(LocalDateTime.now());
+
+        // Teslim süresi: 1 DAKİKA (Sunum için)
+        loan.setDueDate(LocalDateTime.now().plusMinutes(1));
+        // -------------------------
+
         return loanRepository.save(loan);
     }
 
@@ -53,18 +61,25 @@ public class LibraryService {
         Loan loan = loanRepository.findById(loanId).orElseThrow();
         if (loan.getReturnDate() != null) throw new RuntimeException("Zaten iade edilmiş");
 
-        loan.setReturnDate(LocalDate.now());
+        // İade tarihini de şu anki saat/dakika yapıyoruz
+        loan.setReturnDate(LocalDateTime.now());
 
         Book book = loan.getBook();
         book.setStockQuantity(book.getStockQuantity() + 1);
         bookRepository.save(book);
 
+        // Ceza Hesabı (Dakika Bazlı)
         if (loan.getReturnDate().isAfter(loan.getDueDate())) {
-            long days = ChronoUnit.DAYS.between(loan.getDueDate(), loan.getReturnDate());
+            // Kaç DAKİKA gecikti?
+            long minutesOverdue = ChronoUnit.MINUTES.between(loan.getDueDate(), loan.getReturnDate());
+
             Fine fine = new Fine();
             fine.setLoan(loan);
-            fine.setFineAmount(BigDecimal.valueOf(days * 5));
-            fine.setFineDate(LocalDate.now());
+
+            // Dakika başı 0.5 TL ceza (BigDecimal formatında)
+            fine.setFineAmount(BigDecimal.valueOf(minutesOverdue * 0.5));
+
+            fine.setFineDate(LocalDate.now()); // Ceza tarihi gün olarak kalabilir
             fine.setStatus("ODENMEDI");
             fineRepository.save(fine);
         }

@@ -8,7 +8,8 @@ import com.Library.Library.repository.LoanRepository;
 import com.Library.Library.repository.MemberRepository;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
-import java.time.LocalDate;
+
+import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
 
@@ -18,7 +19,9 @@ public class LoanService {
     private final LoanRepository loanRepository;
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
-    private static final double DAILY_FINE = 0.5; // Günlük ceza 0.5 TL
+
+    // Dakika başı 0.5 TL ceza
+    private static final double MINUTE_FINE = 0.5;
 
     public LoanService(LoanRepository loanRepository, BookRepository bookRepository, MemberRepository memberRepository) {
         this.loanRepository = loanRepository;
@@ -28,7 +31,6 @@ public class LoanService {
 
     public List<Loan> getActiveLoansWithFines() {
         List<Loan> activeLoans = loanRepository.findByReturnDateIsNull();
-
         for (Loan loan : activeLoans) {
             loan.setFineAmount(calculateFine(loan));
         }
@@ -38,8 +40,7 @@ public class LoanService {
     @Transactional
     public Loan returnBook(Long loanId) {
         Loan loan = loanRepository.findById(loanId).orElseThrow(() -> new RuntimeException("Ödünç kaydı bulunamadı!"));
-
-        loan.setReturnDate(LocalDate.now());
+        loan.setReturnDate(LocalDateTime.now());
 
         Book book = loan.getBook();
         book.setStockQuantity(book.getStockQuantity() + 1);
@@ -52,13 +53,13 @@ public class LoanService {
     @Transactional
     public Loan loanBook(Long bookId, Long memberId) {
         if (loanRepository.existsByMemberIdAndBookIdAndReturnDateIsNull(memberId, bookId)) {
-            throw new RuntimeException("Bu kitabı zaten ödünç aldınız! İade etmeden tekrar alamazsınız.");
+            throw new RuntimeException("Bu kitabı zaten ödünç aldınız!");
         }
         Book book = bookRepository.findById(bookId).orElseThrow(() -> new RuntimeException("Kitap bulunamadı."));
         Member member = memberRepository.findById(memberId).orElseThrow(() -> new RuntimeException("Üye bulunamadı."));
 
         if (book.getStockQuantity() <= 0) {
-            throw new RuntimeException("Bu kitabın stoğu kalmamıştır.");
+            throw new RuntimeException("Stok yok.");
         }
 
         book.setStockQuantity(book.getStockQuantity() - 1);
@@ -68,28 +69,40 @@ public class LoanService {
         loan.setBook(book);
         loan.setMember(member);
 
+        // SUNUM MODU:
+        loan.setLoanDate(LocalDateTime.now());
+        loan.setDueDate(LocalDateTime.now().plusMinutes(1)); // 1 Dakika süre
+
         return loanRepository.save(loan);
     }
 
     private Double calculateFine(Loan loan) {
-        LocalDate today = LocalDate.now();
-        if (loan.getDueDate().isBefore(today)) {
-            long overdueDays = ChronoUnit.DAYS.between(loan.getDueDate(), today);
-            return overdueDays * DAILY_FINE;
+        LocalDateTime now = LocalDateTime.now();
+        if (loan.getDueDate().isBefore(now)) {
+            long overdueMinutes = ChronoUnit.MINUTES.between(loan.getDueDate(), now);
+            return overdueMinutes * MINUTE_FINE;
         }
         return 0.0;
     }
 
-    public long getRemainingDays(Loan loan) {
-        return ChronoUnit.DAYS.between(LocalDate.now(), loan.getDueDate());
-    }
-
     public List<Loan> getMemberLoans(Long memberId) {
+        // Veritabanından kitapları çek
         List<Loan> loans = loanRepository.findByMemberIdAndReturnDateIsNull(memberId);
+
+        LocalDateTime now = LocalDateTime.now();
+
         for (Loan loan : loans) {
+            // Cezayı hesapla
             loan.setFineAmount(calculateFine(loan));
+
+            // --- FRONTEND KANDIRMACA (ŞOV İÇİN) ---
+            // Eğer dakika olarak süre dolduysa...
+            if (loan.getDueDate().isBefore(now)) {
+                // Siteye "Bu kitabın tarihi DÜN bitti" diye yalan söylüyoruz.
+                // Böylece site saati umursamasa bile "GÜN GEÇMİŞ" sanıp KIRMIZI yakacak!
+                loan.setDueDate(now.minusDays(1));
+            }
         }
         return loans;
     }
-
 }

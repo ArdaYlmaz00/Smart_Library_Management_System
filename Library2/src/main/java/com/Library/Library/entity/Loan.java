@@ -2,7 +2,7 @@ package com.Library.Library.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
-import java.time.LocalDate;
+import java.time.LocalDateTime; // Dakika ayarı
 
 @Data
 @Entity
@@ -18,20 +18,20 @@ public class Loan {
 
     @ManyToOne
     @JoinColumn(name = "member_id", nullable = false)
-    private Member member; // Ödünç alan üye
+    private Member member;
 
     @ManyToOne
     @JoinColumn(name = "staff_id")
     private Staff staff;
 
     @Column(name = "loan_date", nullable = false)
-    private LocalDate loanDate = LocalDate.now();
+    private LocalDateTime loanDate = LocalDateTime.now();
 
     @Column(name = "return_date")
-    private LocalDate returnDate;
+    private LocalDateTime returnDate;
 
     @Column(name = "due_date", nullable = false)
-    private LocalDate dueDate;
+    private LocalDateTime dueDate;
 
     @Column(name = "fine_amount")
     private Double fineAmount = 0.0;
@@ -39,7 +39,8 @@ public class Loan {
     @PrePersist
     public void prePersist() {
         if (this.dueDate == null) {
-            this.dueDate = LocalDate.now().plusDays(14);
+            // Kitabı alır almaz süresi 1 DAKİKA sonra dolsun
+            this.dueDate = LocalDateTime.now().plusMinutes(1);
         }
     }
 }

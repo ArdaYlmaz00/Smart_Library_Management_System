@@ -105,7 +105,19 @@
     let allBooks = [];
     document.addEventListener('DOMContentLoaded', loadBooks);
 
-    function logout() { localStorage.removeItem('currentUser'); window.location.href = 'index.html'; }
+    function logout() {
+        if(currentUser && currentUser.id) {
+            // Backend'e "Bu kullanıcının token'ını sil" diyoruz
+            fetch('/api/members/logout/' + currentUser.id, { method: 'POST' })
+                .finally(() => {
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                });
+        } else {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+    }
 
     function showSection(sec) {
         ['browse', 'mybooks', 'profile'].forEach(s => document.getElementById('section-' + s).style.display = 'none');
@@ -161,20 +173,88 @@
         }
     }
 
+    // TABLOYU DOLDURAN FONKSİYON
     function loadMyLoans() {
-        fetch(`/api/loans/member/${currentUser.id}`).then(r => r.json()).then(loans => {
-            const tbody = document.getElementById('myLoansTable'); tbody.innerHTML = '';
-            loans.forEach(l => {
-                const fine = l.fineAmount > 0 ? `<span class="badge bg-danger">${l.fineAmount} TL Ceza</span>` : `<span class="badge bg-success">Zamanı Var</span>`;
-                // Kitap resmi de eklendi
-                const img = l.book.imageUrl || 'https://via.placeholder.com/40x60';
-                tbody.innerHTML += `<tr>
-                        <td><div class="d-flex align-items-center"><img src="${img}" style="height: 50px; width: auto; margin-right: 10px; border-radius:4px;"> ${l.book.title}</div></td>
-                        <td>${l.loanDate}</td>
-                        <td>${fine}</td>
-                    </tr>`;
-            });
-        });
+        // Kullanıcı giriş yapmamışsa dur
+        if (!currentUser) return;
+
+        fetch('/api/loans/member/' + currentUser.id)
+            .then(response => response.json())
+            .then(loans => {
+                const tbody = document.getElementById('myLoansTable');
+                tbody.innerHTML = ''; // Tabloyu temizle
+
+                loans.forEach(loan => {
+                    // 1. Durum ve Ödeme Butonu Ayarı
+                    let statusHtml = '';
+                    let payButtonHtml = '';
+
+                    if (loan.fineAmount > 0) {
+                        // Ceza varsa kırmızı yazı ve ÖDE butonu
+                        statusHtml = `<span class="badge bg-danger">Ceza: ${loan.fineAmount} TL</span>`;
+                        payButtonHtml = `<button class="btn btn-success btn-sm ms-2" onclick="payFine(${loan.id})">
+                                            <i class="fas fa-credit-card"></i> ÖDE
+                                         </button>`;
+                    } else {
+                        // Ceza yoksa yeşil yazı
+                        statusHtml = `<span class="badge bg-success">Zamanı Var</span>`;
+                    }
+
+                    // 2. İade Et Butonu (Her zaman görünür)
+                    let returnButtonHtml = `<button class="btn btn-warning btn-sm text-white" onclick="returnBook(${loan.id})">
+                                                <i class="fas fa-undo"></i> İade Et
+                                            </button>`;
+
+                    // 3. Kitap Resmi (Yoksa varsayılan resim)
+                    const imgUrl = loan.book.imageUrl || 'https://via.placeholder.com/40x60';
+
+                    // 4. Tabloya Satırı Ekle
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <img src="${imgUrl}" style="width: 40px; height: 60px; object-fit: cover; margin-right: 10px; border-radius: 4px;">
+                                    <span class="fw-bold">${loan.book.title}</span>
+                                </div>
+                            </td>
+                            <td>${loan.loanDate}</td>
+                            <td>${statusHtml}</td> <td>
+                                ${returnButtonHtml}
+                                ${payButtonHtml}
+                            </td> </tr>
+                    `;
+                });
+            })
+            .catch(err => console.error("Hata:", err));
+    }
+
+    // İADE ETME İŞLEMİ
+    function returnBook(loanId) {
+        if(confirm("Kitabı iade etmek istiyor musunuz?")) {
+            fetch('/api/loans/return/' + loanId, { method: 'POST' })
+                .then(res => res.text())
+                .then(msg => {
+                    alert(msg);
+                    loadMyLoans(); // Tabloyu yenile
+                });
+        }
+    }
+
+    // CEZA ÖDEME İŞLEMİ
+    function payFine(loanId) {
+        // "544 TL" yazısını sildik, yerine genel ve doğru ifadeyi koyduk:
+        if(confirm("Güncel ceza tutarını ödemek ve kitabı iade etmek istiyor musunuz?")) {
+            fetch('/api/loans/pay-fine/' + loanId, { method: 'PUT' })
+                .then(res => res.text())
+                .then(msg => {
+                    alert(msg); // Backend'den gelen "Ödeme alındı..." mesajını gösterir
+                    loadMyLoans(); // Tabloyu yeniler
+                })
+                .catch(error => {
+                    console.error('Hata:', error);
+                    alert("İşlem sırasında bir hata oluştu.");
+                });
+        }
     }
 
     function updatePassword() {
