@@ -11,7 +11,6 @@ public class EmailService {
     @Autowired
     private JavaMailSender mailSender;
 
-    // Her iki ismi de destekliyoruz ki hata vermesin
     public void sendSimpleMessage(String to, String subject, String text) {
         sendEmailInternal(to, subject, text);
     }

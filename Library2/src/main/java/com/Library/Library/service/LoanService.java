@@ -19,8 +19,6 @@ public class LoanService {
     private final LoanRepository loanRepository;
     private final BookRepository bookRepository;
     private final MemberRepository memberRepository;
-
-    // Dakika başı 0.5 TL ceza
     private static final double MINUTE_FINE = 0.5;
 
     public LoanService(LoanRepository loanRepository, BookRepository bookRepository, MemberRepository memberRepository) {
@@ -69,7 +67,6 @@ public class LoanService {
         loan.setBook(book);
         loan.setMember(member);
 
-        // SUNUM MODU:
         loan.setLoanDate(LocalDateTime.now());
         loan.setDueDate(LocalDateTime.now().plusMinutes(1)); // 1 Dakika süre
 
@@ -86,20 +83,14 @@ public class LoanService {
     }
 
     public List<Loan> getMemberLoans(Long memberId) {
-        // Veritabanından kitapları çek
         List<Loan> loans = loanRepository.findByMemberIdAndReturnDateIsNull(memberId);
 
         LocalDateTime now = LocalDateTime.now();
 
         for (Loan loan : loans) {
-            // Cezayı hesapla
             loan.setFineAmount(calculateFine(loan));
 
-            // --- FRONTEND KANDIRMACA (ŞOV İÇİN) ---
-            // Eğer dakika olarak süre dolduysa...
             if (loan.getDueDate().isBefore(now)) {
-                // Siteye "Bu kitabın tarihi DÜN bitti" diye yalan söylüyoruz.
-                // Böylece site saati umursamasa bile "GÜN GEÇMİŞ" sanıp KIRMIZI yakacak!
                 loan.setDueDate(now.minusDays(1));
             }
         }

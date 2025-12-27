@@ -123,7 +123,6 @@
             loans.forEach(l => {
                 const fine = l.fineAmount > 0 ? `<b class="text-danger">${l.fineAmount} TL</b>` : '-';
                 const img = l.book.imageUrl ? l.book.imageUrl : 'https://via.placeholder.com/40x60';
-                // Tabloya resim eklendi
                 tbody.innerHTML += `<tr>
                     <td><div class="d-flex align-items-center"><img src="${img}" class="book-thumb me-2"> ${l.book.title}</div></td>
                     <td>${l.member.firstName}</td>

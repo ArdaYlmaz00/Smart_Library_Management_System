@@ -14,7 +14,6 @@ public class NotificationScheduler {
     private final LoanRepository loanRepository;
     private final EmailService emailService;
 
-    // Dakika başı ceza (Service ile aynı olsun)
     private static final double MINUTE_FINE = 0.5;
 
     public NotificationScheduler(LoanRepository loanRepository, EmailService emailService) {
@@ -22,7 +21,6 @@ public class NotificationScheduler {
         this.emailService = emailService;
     }
 
-    // Her 30 saniyede bir kontrol et
     @Scheduled(fixedRate = 30000)
     public void checkOverdueLoans() {
         List<Loan> activeLoans = loanRepository.findByReturnDateIsNull();
@@ -32,7 +30,6 @@ public class NotificationScheduler {
             if (loan.getDueDate().isBefore(now)) {
                 long overdueMinutes = ChronoUnit.MINUTES.between(loan.getDueDate(), now);
 
-                // Maili sadece dakika pozitifse gönder
                 if (overdueMinutes > 0 && loan.getMember() != null && loan.getMember().getEmail() != null) {
                     sendOverdueNotification(loan, overdueMinutes);
                 }
@@ -48,7 +45,6 @@ public class NotificationScheduler {
                 memberName = loan.getMember().getFirstName();
         } catch(Exception e) {}
 
-        // CEZAYI BURADA HESAPLIYORUZ Kİ MAİLDE DOĞRU ÇIKSIN
         double currentFine = overdueMinutes * MINUTE_FINE;
 
         String text = "Sayın " + memberName + ",\n" +

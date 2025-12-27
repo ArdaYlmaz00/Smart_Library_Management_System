@@ -15,9 +15,8 @@ public class LoanController {
 
     private final LoanService loanService;
     private final LoanRepository loanRepository;
-    private final BookRepository bookRepository; // Stok artırmak için lazım
+    private final BookRepository bookRepository;
 
-    // Constructor'a BookRepository ekledik
     public LoanController(LoanService loanService, LoanRepository loanRepository, BookRepository bookRepository) {
         this.loanService = loanService;
         this.loanRepository = loanRepository;
@@ -49,19 +48,14 @@ public class LoanController {
         }
     }
 
-    // --- BURASI DEĞİŞTİ: ÖDEME YAPINCA KİTABI İADE ALIYORUZ ---
     @PutMapping("/pay-fine/{loanId}")
     public org.springframework.http.ResponseEntity<?> payFine(@PathVariable Long loanId) {
         return loanRepository.findById(loanId).map(loan -> {
 
-            // 1. Cezayı Sıfırla
             loan.setFineAmount(0.0);
 
-            // 2. Kitabı İADE EDİLDİ say (Bugünün tarihini at)
-            // Tarih atılınca "ReturnDateIsNull" sorgusundan düşer ve listeden gider.
             loan.setReturnDate(LocalDateTime.now());
 
-            // 3. Kitap Stoğunu 1 Artır
             Book book = loan.getBook();
             book.setStockQuantity(book.getStockQuantity() + 1);
             bookRepository.save(book);

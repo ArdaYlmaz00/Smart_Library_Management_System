@@ -39,7 +39,6 @@ public class Loan {
     @PrePersist
     public void prePersist() {
         if (this.dueDate == null) {
-            // Kitabı alır almaz süresi 1 DAKİKA sonra dolsun
             this.dueDate = LocalDateTime.now().plusMinutes(1);
         }
     }

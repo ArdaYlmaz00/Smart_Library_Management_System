@@ -97,7 +97,6 @@ public class MemberController {
         return org.springframework.http.ResponseEntity.ok("Kayıt başarılı! Şimdi giriş yapabilirsiniz.");
     }
 
-    // ŞİFREMİ UNUTTUM - EKLENDİ
     @PostMapping("/forgot-password")
     public org.springframework.http.ResponseEntity<?> forgotPassword(@RequestBody java.util.Map<String, String> data) {
         String email = data.get("email");
@@ -107,7 +106,6 @@ public class MemberController {
             return org.springframework.http.ResponseEntity.badRequest().body("Bu email adresiyle kayıtlı üye bulunamadı.");
         }
 
-        // Yeni rastgele şifre: 123456 (Basitlik olsun diye sabit yaptım)
         String newPassword = "123456";
 
         member.setPassword(newPassword);

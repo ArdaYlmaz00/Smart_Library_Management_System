@@ -30,7 +30,7 @@ public class AuthController {
             System.out.println("3. ✅ Kullanıcı Veritabanında Bulundu!");
             System.out.println("   - DB'deki ID: " + dbMember.getId());
             System.out.println("   - DB'deki Email: " + dbMember.getEmail());
-            System.out.println("   - DB'deki Şifre: " + dbMember.getPassword()); // Burası null ise Entity bozuktur!
+            System.out.println("   - DB'deki Şifre: " + dbMember.getPassword());
             System.out.println("   - DB'deki Rol: " + dbMember.getRole());
 
             if (dbMember.getPassword() != null && dbMember.getPassword().equals(loginRequest.getPassword())) {
